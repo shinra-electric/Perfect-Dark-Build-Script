@@ -148,6 +148,7 @@ bundle() {
 	rm -rf "${GAME_TITLE}.app"
 	mkdir -p "${GAME_TITLE}.app/Contents/Frameworks"
 	mkdir -p "${GAME_TITLE}.app/Contents/MacOS"
+	mkdir -p "${GAME_TITLE}.app/Contents/Resources"
 	
 	# create Info.plist
 	PLIST="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
@@ -211,6 +212,8 @@ bundle() {
 		mkdir -p $APP_SUPPORT/data/
 	fi
 	cp $ROM_ID "$APP_SUPPORT/data/"
+	
+	curl -o ${GAME_TITLE}.app/Contents/Resources/${GAME_ID}.icns ${ICON_URL}
 }
 
 introduction
