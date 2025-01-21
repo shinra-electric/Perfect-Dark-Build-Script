@@ -126,7 +126,7 @@ set_vars() {
 	echo "${PURPLE}Setting variables...${NC}"
 	PKGINFO_TITLE="PFDK"
 	
-	# ICON_URL="https://parsefiles.back4app.com/JPaQcFfEEQ1ePBxbf6wvzkPMEqKYHhPYv8boI1Rc/87512f5188f252cd2211156668142c54_Medal_of_Honor_Allied_Assault.icns"
+	ICON_URL="https://parsefiles.back4app.com/JPaQcFfEEQ1ePBxbf6wvzkPMEqKYHhPYv8boI1Rc/b2b70e5bbb4a1130e42deb5b0128ebde_low_res_Perfect_Dark.png"
 	APP_SUPPORT=~/Library/Application\ Support/perfectdark
 }
 
