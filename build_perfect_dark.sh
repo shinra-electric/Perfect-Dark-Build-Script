@@ -313,15 +313,18 @@ bundle() {
 	echo "${PKGINFO}" > "${GAME_TITLE}.app/Contents/PkgInfo"
 	
 	mv ${GAME_ID} "${GAME_TITLE}.app/Contents/MacOS"
-	ditto /opt/homebrew/opt/sdl2/lib/libSDL2-2.0.0.dylib "${GAME_TITLE}.app/Contents/Frameworks"
-	install_name_tool -change /opt/homebrew/opt/sdl2/lib/libSDL2-2.0.0.dylib @executable_path/../Frameworks/libSDL2-2.0.0.dylib "${GAME_TITLE}.app/Contents/MacOS/${GAME_ID}"
+	ditto $(brew --prefix)/opt/sdl2/lib/libSDL2-2.0.0.dylib "${GAME_TITLE}.app/Contents/Frameworks"
+	install_name_tool -change $(brew --prefix)/opt/sdl2/lib/libSDL2-2.0.0.dylib @executable_path/../Frameworks/libSDL2-2.0.0.dylib "${GAME_TITLE}.app/Contents/MacOS/${GAME_ID}"
 	
 	
 	# Copy game data
 	if [ ! -d $APP_SUPPORT/data ]; then 
 		mkdir -p $APP_SUPPORT/data/
 	fi
-	cp $ROM_ID "$APP_SUPPORT/data/"
+	
+	if [ ! -a $APP_SUPPORT/data/$ROM_ID ]; then 
+		cp $ROM_ID "$APP_SUPPORT/data/"
+	fi
 	
 	curl -o ${GAME_TITLE}.app/Contents/Resources/${GAME_ID}.icns ${ICON_URL}
 }
