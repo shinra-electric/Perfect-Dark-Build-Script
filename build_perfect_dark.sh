@@ -10,15 +10,27 @@ NC='\033[0m' # No Colour
 SCRIPT_DIR=${0:a:h}
 cd "$SCRIPT_DIR"
 
-ARCH="$(uname -m)"
-CORES=$(sysctl -n hw.ncpu)
+set_vars() {
+	ARCH="$(uname -m)"
+	CORES=$(sysctl -n hw.ncpu)
+	PKGINFO_TITLE="PFDK"
+	ICON_URL="https://parsefiles.back4app.com/JPaQcFfEEQ1ePBxbf6wvzkPMEqKYHhPYv8boI1Rc/03c5fd504059ea1b5e40ccd9bac778ac_Perfect_Dark.icns"
+	APP_SUPPORT=~/Library/Application\ Support/perfectdark
+}
 
 introduction() {
-	echo "${PURPLE}This script will build a native macOS version of Perfect Dark${NC}"
+	echo "\n${PURPLE}This script will build a native macOS version of Perfect Dark${NC}\n"
 	echo "${PURPLE}Run the script from the same folder as your Perfect Dark N64 rom${NC}"
+	echo "${PURPLE}Rename your rom to one of the following based on the region: ${NC}"
+	echo "${PURPLE}US: ${GREEN}pd.ntsc-final.z64${NC}"
+	echo "${PURPLE}EU: ${GREEN}pd.pal-final.z64${NC}"
+	echo "${PURPLE}Japan: ${GREEN}pd.jp-final.z64${NC}\n"
 }
 
 main_menu() {
+	set_vars
+	introduction
+	homebrew_check
 	PS3='Which version would you like to build? '
 	OPTIONS=(
 		"US (v.1.1)"
@@ -32,9 +44,6 @@ main_menu() {
 				GAME_ID="pd.$ARCH"
 				ROM_ID="pd.ntsc-final.z64"
 				GAME_TITLE="Perfect Dark (US)"
-				set_vars
-				homebrew_check
-				check_all_dependencies
 				build ntsc
 				bundle
 				break
@@ -43,9 +52,6 @@ main_menu() {
 				GAME_ID="pd.pal.$ARCH"
 				ROM_ID="pd.pal-final.z64"
 				GAME_TITLE="Perfect Dark (EU)"
-				set_vars
-				homebrew_check
-				check_all_dependencies
 				build pal
 				bundle
 				break
@@ -54,15 +60,12 @@ main_menu() {
 				GAME_ID="pd.jpn.$ARCH"
 				ROM_ID="pd.jpn-final.z64"
 				GAME_TITLE="Perfect Dark (JP)"
-				set_vars
-				homebrew_check
-				check_all_dependencies
 				build jpn
 				bundle
 				break
 				;;
 			"Quit")
-				echo -e "${RED}Quitting${NC}"
+				echo "${RED}Quitting${NC}"
 				exit 0
 				;;
 			*) 
@@ -77,26 +80,88 @@ main_menu() {
 homebrew_check() {
 	echo "${PURPLE}Checking for Homebrew...${NC}"
 	if ! command -v brew &> /dev/null; then
-		echo "${PURPLE}Homebrew not found. Installing Homebrew...${NC}"
-		/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-		if [[ "${ARCH}" == "arm64" ]]; then 
-			(echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> $HOME/.zprofile
-			eval "$(/opt/homebrew/bin/brew shellenv)"
-		else 
-			(echo; echo 'eval "$(/usr/local/bin/brew shellenv)"') >> $HOME/.zprofile
-			eval "$(/usr/local/bin/brew shellenv)"
-		fi
-		
-		# Check for errors
-		if [ $? -ne 0 ]; then
-			echo "${RED}There was an issue installing Homebrew${NC}"
-			echo "${PURPLE}Quitting script...${NC}"	
-			exit 1
-		fi
-	else
-		echo "${PURPLE}Homebrew found. Updating Homebrew...${NC}"
-		brew update
+		echo "${PURPLE}Homebrew has not been detected${NC}"
+		homebrew_install_menu
+	else 
+		homebrew_update_menu
 	fi
+}
+
+homebrew_install_menu() {
+	echo "${GREEN}Homebrew${PURPLE} and the ${GREEN}Xcode command-line tools${PURPLE} are required${NC}\n"
+	PS3='Would you like to install Homebrew? '
+	OPTIONS=(
+		"Yes"
+		"No")
+	select opt in $OPTIONS[@]
+	do
+		case $opt in
+			"Yes")
+				install_homebrew
+				break
+				;;
+			"No")
+				echo "${PURPLE}The script cannot run without Homebrew${NC}"
+				echo "${RED}Quitting${NC}"
+				exit 0
+				;;
+			*) 
+				echo "\"$REPLY\" is not one of the options..."
+				echo "Enter the number of the option and press enter to select"
+				;;
+		esac
+	done
+}
+
+homebrew_update_menu() {
+	echo "${PURPLE}Homebrew has been detected${NC}"
+	PS3='Would you like to install or update the required dependencies? '
+	OPTIONS=(
+		"No"
+		"Yes")
+	select opt in $OPTIONS[@]
+	do
+		case $opt in
+			"No")
+				echo "\n${RED}Skipping Homebrew checks${NC}"
+				echo "${PURPLE}The script will fail if any of the dependencies are missing${NC}\n"
+				break
+				;;
+			"Yes")
+				update_homebrew
+				check_all_dependencies
+				break
+				;;
+			*) 
+				echo "\"$REPLY\" is not one of the options..."
+				echo "Enter the number of the option and press enter to select"
+				;;
+		esac
+	done
+}
+
+install_homebrew() {
+	echo "${PURPLE}Installing Homebrew...${NC}"
+	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+	if [[ "${ARCH}" == "arm64" ]]; then 
+		(echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> $HOME/.zprofile
+		eval "$(/opt/homebrew/bin/brew shellenv)"
+	else 
+		(echo; echo 'eval "$(/usr/local/bin/brew shellenv)"') >> $HOME/.zprofile
+		eval "$(/usr/local/bin/brew shellenv)"
+	fi
+	
+	# Check for errors
+	if [ $? -ne 0 ]; then
+		echo "${RED}There was an issue installing Homebrew${NC}"
+		echo "${PURPLE}Quitting script...${NC}"	
+		exit 1
+	fi
+}
+
+update_homebrew() {
+	echo "${PURPLE}Updating Homebrew...${NC}"
+	brew update
 }
 
 # Function for checking for an individual dependency
@@ -120,14 +185,6 @@ check_all_dependencies() {
 	do 
 		single_dependency_check $dep
 	done
-}
-
-set_vars() {
-	echo "${PURPLE}Setting variables...${NC}"
-	PKGINFO_TITLE="PFDK"
-	
-	ICON_URL="https://parsefiles.back4app.com/JPaQcFfEEQ1ePBxbf6wvzkPMEqKYHhPYv8boI1Rc/03c5fd504059ea1b5e40ccd9bac778ac_Perfect_Dark.icns"
-	APP_SUPPORT=~/Library/Application\ Support/perfectdark
 }
 
 build() {
@@ -177,8 +234,6 @@ bundle() {
 		</array>
 		<key>CFBundleShortVersionString</key>
 		<string>1.0</string>
-		<key>CFBundleVersion</key>
-		<string>1.0</string>
 		<key>LSMinimumSystemVersion</key>
 		<string>11.0</string>
 		<key>NSPrincipalClass</key>
@@ -216,5 +271,4 @@ bundle() {
 	curl -o ${GAME_TITLE}.app/Contents/Resources/${GAME_ID}.icns ${ICON_URL}
 }
 
-introduction
 main_menu
