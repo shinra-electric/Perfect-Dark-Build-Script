@@ -13,6 +13,10 @@ cd "$SCRIPT_DIR"
 set_vars() {
 	ARCH="$(uname -m)"
 	CORES=$(sysctl -n hw.ncpu)
+	SHASUM_US1="af8788ac4d1a57260eae9c53ffe851fcf2a3319b"
+	SHASUM_US="60dfe17923c03875b499b3cd3200f05cb538b7ad"
+	SHASUM_EU="a663d3f4eee0b198471132db92e9639a9edd1985"
+	SHASUM_JP="99bcaaa4841b09c845e1094006df8f637862f02e"
 	PKGINFO_TITLE="PFDK"
 	ICON_URL="https://parsefiles.back4app.com/JPaQcFfEEQ1ePBxbf6wvzkPMEqKYHhPYv8boI1Rc/03c5fd504059ea1b5e40ccd9bac778ac_Perfect_Dark.icns"
 	APP_SUPPORT=~/Library/Application\ Support/perfectdark
@@ -24,43 +28,23 @@ introduction() {
 	echo "${PURPLE}Rename your rom to one of the following based on the region: ${NC}"
 	echo "${PURPLE}US: ${GREEN}pd.ntsc-final.z64${NC}"
 	echo "${PURPLE}EU: ${GREEN}pd.pal-final.z64${NC}"
-	echo "${PURPLE}Japan: ${GREEN}pd.jp-final.z64${NC}\n"
+	echo "${PURPLE}Japan: ${GREEN}pd.jpn-final.z64${NC}\n"
 }
 
 main_menu() {
 	set_vars
 	introduction
 	homebrew_check
-	PS3='Which version would you like to build? '
+	check_rom
+	PS3='Would you like to continue building? '
 	OPTIONS=(
-		"US (v.1.1)"
-		"EU"
-		"JP"
+		"Build"
 		"Quit")
 	select opt in $OPTIONS[@]
 	do
 		case $opt in
-			"US (v.1.1)")
-				GAME_ID="pd.$ARCH"
-				ROM_ID="pd.ntsc-final.z64"
-				GAME_TITLE="Perfect Dark (US)"
-				build ntsc
-				bundle
-				break
-				;;
-			"EU")
-				GAME_ID="pd.pal.$ARCH"
-				ROM_ID="pd.pal-final.z64"
-				GAME_TITLE="Perfect Dark (EU)"
-				build pal
-				bundle
-				break
-				;;
-			"JP")
-				GAME_ID="pd.jpn.$ARCH"
-				ROM_ID="pd.jpn-final.z64"
-				GAME_TITLE="Perfect Dark (JP)"
-				build jpn
+			"Build")
+				build
 				bundle
 				break
 				;;
@@ -82,7 +66,8 @@ homebrew_check() {
 	if ! command -v brew &> /dev/null; then
 		echo "${PURPLE}Homebrew has not been detected${NC}"
 		homebrew_install_menu
-	else 
+	else
+		echo "${PURPLE}Homebrew has been detected${NC}"
 		homebrew_update_menu
 	fi
 }
@@ -114,20 +99,19 @@ homebrew_install_menu() {
 }
 
 homebrew_update_menu() {
-	echo "${PURPLE}Homebrew has been detected${NC}"
 	PS3='Would you like to install or update the required dependencies? '
 	OPTIONS=(
-		"No"
-		"Yes")
+		"Continue"
+		"Install / Update")
 	select opt in $OPTIONS[@]
 	do
 		case $opt in
-			"No")
+			"Continue")
 				echo "\n${RED}Skipping Homebrew checks${NC}"
 				echo "${PURPLE}The script will fail if any of the dependencies are missing${NC}\n"
 				break
 				;;
-			"Yes")
+			"Install / Update")
 				update_homebrew
 				check_all_dependencies
 				break
@@ -187,11 +171,82 @@ check_all_dependencies() {
 	done
 }
 
+check_rom() {
+	if [[ -a "pd.ntsc-final.z64" ]]; then 
+		echo "${PURPLE}Checking shasum...${NC}"
+		ROM_NAME="pd.ntsc-final.z64"
+		check_shasum "${ROM_NAME}"
+	elif [[ -a "pd.pal-final.z64" ]]; then 
+		echo "${PURPLE}Checking shasum...${NC}"
+		ROM_NAME="pd.pal-final.z64"
+		check_shasum "${ROM_NAME}"
+	elif [[ -a "pd.jpn-final.z64" ]]; then 
+		echo "${PURPLE}Checking shasum...${NC}"
+		ROM_NAME="pd.jpn-final.z64"
+		check_shasum "${ROM_NAME}"
+	else 
+		echo "${RED}Couldn't find a valid rom${NC}"
+		echo "${PURPLE}Place the ROM in the same folder that the script is run from and rename it${NC}\n"
+		exit 1
+	fi
+}
+
+check_shasum() {
+	USR_ROM_SHA=$(shasum $1 | awk '{print $1}')
+	
+	if [ $? -ne 0 ]; then
+		echo "${RED}There was an issue checking the shasum of the file.${NC}"	
+		exit 1
+	fi
+	
+	echo "${PURPLE}\nThe shasum of the provided file is: \n${NC}$USR_ROM_SHA"
+	
+	if [[ $USR_ROM_SHA == $SHASUM_US1 ]]; then
+		echo "${GREEN}US region rom v1.1 has been detected${NC}\n"
+		REGION="ntsc"
+		GAME_ID="pd.$ARCH"
+		ROM_ID="pd.ntsc-final.z64"
+		GAME_TITLE="Perfect Dark (US)"
+		GAME_VERSION="1.1"
+	elif [[ $USR_ROM_SHA == $SHASUM_EU ]]; then
+		echo "${GREEN}EU region rom has been detected${NC}\n"
+		REGION="pal"
+		GAME_ID="pd.pal.$ARCH"
+		ROM_ID="pd.pal-final.z64"
+		GAME_TITLE="Perfect Dark (EU)"
+		GAME_VERSION="1.0"
+	elif [[ $USR_ROM_SHA == $SHASUM_JP ]]; then
+		echo "${GREEN}JP region rom has been detected${NC}\n"
+		REGION="jpn"
+		GAME_ID="pd.jpn.$ARCH"
+		ROM_ID="pd.jpn-final.z64"
+		GAME_TITLE="Perfect Dark (JP)"
+		GAME_VERSION="1.0"
+	elif [[ $USR_ROM_SHA == $SHASUM_US ]]; then
+		echo "${PURPLE}The shasum matches the US v1.0 version of the game. \n${RED}This version is unsupported.${NC}"
+		exit 1
+	else 
+		echo "${RED}The shasum does not match any supported version of the game.${NC}"
+		exit 1
+	fi
+}
+
 build() {
+	if [ -d perfect_dark ]; then
+		rm -rf perfect_dark
+	fi
+	
 	git clone --recursive https://github.com/fgsfdsfgs/perfect_dark.git
+	# Check for errors
+	if [ $? -ne 0 ]; then
+		echo "${RED}There was an issue downloading the source repository${NC}"
+		echo "${PURPLE}Quitting script...${NC}"	
+		exit 1
+	fi
+	
 	cd perfect_dark
 	
-	cmake -G"Unix Makefiles" -Bbuild -DCMAKE_MACOSX_RPATH=ON -DCMAKE_OSX_ARCHITECTURES=$ARCH -DROMID=$1-final .
+	cmake -G"Unix Makefiles" -Bbuild -DCMAKE_MACOSX_RPATH=ON -DCMAKE_OSX_ARCHITECTURES=$ARCH -DROMID=${REGION}-final .
 	cmake --build build --target pd -j$CORES --clean-first
 	
 	cd ..
@@ -233,7 +288,7 @@ bundle() {
 			<string>MacOSX</string>
 		</array>
 		<key>CFBundleShortVersionString</key>
-		<string>1.0</string>
+		<string>${GAME_VERSION}</string>
 		<key>LSMinimumSystemVersion</key>
 		<string>11.0</string>
 		<key>NSPrincipalClass</key>
